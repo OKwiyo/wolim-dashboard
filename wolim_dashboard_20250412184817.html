@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WOLIM TECHHUB Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f4f8;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+    }
+    canvas {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      margin: 20px auto;
+      display: block;
+      max-width: 600px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Weekly Attendance</h1>
+  <canvas id="attendanceChart"></canvas>
+  <h1>Giving Trends</h1>
+  <canvas id="givingChart"></canvas>
+  <h1>Ministry Engagement</h1>
+  <canvas id="engagementChart"></canvas>
+
+  <script>
+    const firebaseConfig = {'apiKey': 'YOUR_API_KEY', 'authDomain': 'your-project-id.firebaseapp.com', 'projectId': 'your-project-id', 'storageBucket': 'your-project-id.appspot.com', 'messagingSenderId': 'YOUR_MESSAGING_SENDER_ID', 'appId': 'YOUR_APP_ID'};
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Attendance Chart
+    db.collection("attendance").get().then(snapshot => {
+      const labels = [];
+      const counts = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        labels.push(data.date);
+        counts.push(data.total);
+      });
+      new Chart(document.getElementById("attendanceChart"), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: "Attendance",
+            data: counts,
+            backgroundColor: "rgba(54, 162, 235, 0.6)"
+          }]
+        }
+      });
+    });
+
+    // Giving Chart
+    db.collection("giving").get().then(snapshot => {
+      const grouped = {};
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        grouped[data.date] = (grouped[data.date] || 0) + data.amount;
+      });
+      const labels = Object.keys(grouped);
+      const totals = Object.values(grouped);
+      new Chart(document.getElementById("givingChart"), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: "Total Giving",
+            data: totals,
+            borderColor: "rgba(255, 99, 132, 1)",
+            backgroundColor: "rgba(255, 99, 132, 0.2)",
+            tension: 0.3,
+            fill: true
+          }]
+        }
+      });
+    });
+
+    // Engagement Chart
+    db.collection("engagement").get().then(snapshot => {
+      const ministries = [];
+      const members = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        ministries.push(data.ministry);
+        members.push(data.members);
+      });
+      new Chart(document.getElementById("engagementChart"), {
+        type: 'doughnut',
+        data: {
+          labels: ministries,
+          datasets: [{
+            label: "Members",
+            data: members,
+            backgroundColor: [
+              "#4dc9f6", "#f67019", "#f53794",
+              "#537bc4", "#acc236", "#166a8f"
+            ]
+          }]
+        }
+      });
+    });
+  </script>
+</body>
+</html>
