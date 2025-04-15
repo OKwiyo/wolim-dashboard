@@ -2,116 +2,289 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>WOLIM TECHHUB Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #f0f4f8;
-      padding: 20px;
+      padding: 10px;
     }
-    h1 {
-      text-align: center;
-    }
-    canvas {
+    .section {
       background: white;
       border-radius: 10px;
-      padding: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      margin: 20px auto;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .section h1 {
+      margin: 0;
+      padding: 10px;
+      font-size: 1.5em;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    .controls {
+      padding: 10px;
+      text-align: center;
+    }
+    select, button {
+      margin: 5px;
+      padding: 6px 12px;
+      font-size: 1em;
+    }
+    button i {
+      margin-right: 5px;
+    }
+    canvas {
+      padding: 10px;
       display: block;
-      max-width: 600px;
+      max-width: 100%;
+    }
+    .chart-container {
+      display: block;
+    }
+    @media (max-width: 600px) {
+      .section h1 {
+        font-size: 1.2em;
+      }
+      select, button {
+        width: 100%;
+        margin: 5px auto;
+        display: block;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Weekly Attendance</h1>
-  <canvas id="attendanceChart"></canvas>
-  <h1>Giving Trends</h1>
-  <canvas id="givingChart"></canvas>
-  <h1>Ministry Engagement</h1>
-  <canvas id="engagementChart"></canvas>
+
+  <div class="section">
+    <h1 onclick="toggleChart('attendance')">Weekly Attendance</h1>
+    <div id="attendance" class="chart-container">
+      <div class="controls">
+        <select id="attendanceMonthFilter"></select>
+        <button onclick="exportChartToPDF('attendanceChart')"><i class="fas fa-file-pdf"></i>Export PDF</button>
+        <button onclick="exportChartToExcel('attendanceChart')"><i class="fas fa-file-excel"></i>Export Excel</button>
+      </div>
+      <canvas id="attendanceChart"></canvas>
+    </div>
+  </div>
+
+  <div class="section">
+    <h1 onclick="toggleChart('giving')">Giving Trends</h1>
+    <div id="giving" class="chart-container">
+      <div class="controls">
+        <select id="givingMonthFilter"></select>
+        <button onclick="exportChartToPDF('givingChart')"><i class="fas fa-file-pdf"></i>Export PDF</button>
+        <button onclick="exportChartToExcel('givingChart')"><i class="fas fa-file-excel"></i>Export Excel</button>
+      </div>
+      <canvas id="givingChart"></canvas>
+    </div>
+  </div>
+
+  <div class="section">
+    <h1 onclick="toggleChart('engagement')">Ministry Engagement</h1>
+    <div id="engagement" class="chart-container">
+      <div class="controls">
+        <select id="ministryFilter"></select>
+        <button onclick="exportChartToPDF('engagementChart')"><i class="fas fa-file-pdf"></i>Export PDF</button>
+        <button onclick="exportChartToExcel('engagementChart')"><i class="fas fa-file-excel"></i>Export Excel</button>
+      </div>
+      <canvas id="engagementChart"></canvas>
+    </div>
+  </div>
 
   <script>
-    const firebaseConfig = {'apiKey': 'YOUR_API_KEY', 'authDomain': 'your-project-id.firebaseapp.com', 'projectId': 'your-project-id', 'storageBucket': 'your-project-id.appspot.com', 'messagingSenderId': 'YOUR_MESSAGING_SENDER_ID', 'appId': 'YOUR_APP_ID'};
-
+    const firebaseConfig = {
+      apiKey: "AIzaSyCPpOvn7JGbt2eoUpmE48cHxZGfVobp6RI",
+      authDomain: "wolimdashboard.firebaseapp.com",
+      projectId: "wolimdashboard",
+      storageBucket: "wolimdashboard.firebasestorage.app",
+      messagingSenderId: "66238315254",
+      appId: "1:66238315254:web:5488e20bf8f768f942cad7"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Attendance Chart
-    db.collection("attendance").get().then(snapshot => {
-      const labels = [];
-      const counts = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        labels.push(data.date);
-        counts.push(data.total);
-      });
-      new Chart(document.getElementById("attendanceChart"), {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: "Attendance",
-            data: counts,
-            backgroundColor: "rgba(54, 162, 235, 0.6)"
-          }]
-        }
-      });
-    });
+    let attendanceChart, givingChart, engagementChart;
 
-    // Giving Chart
-    db.collection("giving").get().then(snapshot => {
+    function parseDateField(field) {
+      if (typeof field === "string") return field.slice(0, 10);
+      if (field.toDate) return field.toDate().toISOString().slice(0, 10);
+      return "";
+    }
+
+    function groupByMonth(data) {
       const grouped = {};
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        grouped[data.date] = (grouped[data.date] || 0) + data.amount;
+      data.forEach(item => {
+        const month = item.date.slice(0, 7);
+        grouped[month] = (grouped[month] || 0) + item.value;
       });
-      const labels = Object.keys(grouped);
-      const totals = Object.values(grouped);
-      new Chart(document.getElementById("givingChart"), {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: "Total Giving",
-            data: totals,
-            borderColor: "rgba(255, 99, 132, 1)",
-            backgroundColor: "rgba(255, 99, 132, 0.2)",
-            tension: 0.3,
-            fill: true
-          }]
-        }
+      return grouped;
+    }
+
+    function populateMonthFilter(filterId, months) {
+      const filter = document.getElementById(filterId);
+      filter.innerHTML = `<option value="">All Months</option>`;
+      months.forEach(month => {
+        const opt = document.createElement("option");
+        opt.value = month;
+        opt.text = month;
+        filter.appendChild(opt);
       });
+    }
+
+    function renderAttendanceChart(filteredMonth = "") {
+      db.collection("attendance").get().then(snapshot => {
+        const data = [];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const date = parseDateField(d.date);
+          data.push({ date, value: d.total });
+        });
+        const grouped = groupByMonth(data);
+        const months = Object.keys(grouped);
+        populateMonthFilter("attendanceMonthFilter", months);
+        const labels = [], values = [];
+        months.forEach(m => {
+          if (!filteredMonth || m === filteredMonth) {
+            labels.push(m);
+            values.push(grouped[m]);
+          }
+        });
+        if (attendanceChart) attendanceChart.destroy();
+        attendanceChart = new Chart(document.getElementById("attendanceChart"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [{
+              label: "Attendance",
+              data: values,
+              backgroundColor: "rgba(54, 162, 235, 0.6)"
+            }]
+          }
+        });
+      });
+    }
+
+    function renderGivingChart(filteredMonth = "") {
+      db.collection("giving").get().then(snapshot => {
+        const data = [];
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          const date = parseDateField(d.date);
+          data.push({ date, value: d.amount });
+        });
+        const grouped = groupByMonth(data);
+        const months = Object.keys(grouped);
+        populateMonthFilter("givingMonthFilter", months);
+        const labels = [], values = [];
+        months.forEach(m => {
+          if (!filteredMonth || m === filteredMonth) {
+            labels.push(m);
+            values.push(grouped[m]);
+          }
+        });
+        if (givingChart) givingChart.destroy();
+        givingChart = new Chart(document.getElementById("givingChart"), {
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Giving",
+              data: values,
+              borderColor: "rgba(255, 99, 132, 1)",
+              backgroundColor: "rgba(255, 99, 132, 0.2)",
+              tension: 0.3,
+              fill: true
+            }]
+          }
+        });
+      });
+    }
+
+    function renderEngagementChart(ministryFilter = "") {
+      db.collection("engagement").get().then(snapshot => {
+        const ministries = [], members = [], filters = new Set();
+        snapshot.forEach(doc => {
+          const d = doc.data();
+          filters.add(d.ministry);
+          if (!ministryFilter || d.ministry === ministryFilter) {
+            ministries.push(d.ministry);
+            members.push(d.members);
+          }
+        });
+        const filterElem = document.getElementById("ministryFilter");
+        filterElem.innerHTML = `<option value="">All Ministries</option>`;
+        [...filters].forEach(m => {
+          const opt = document.createElement("option");
+          opt.value = m;
+          opt.text = m;
+          filterElem.appendChild(opt);
+        });
+        if (engagementChart) engagementChart.destroy();
+        engagementChart = new Chart(document.getElementById("engagementChart"), {
+          type: "doughnut",
+          data: {
+            labels: ministries,
+            datasets: [{
+              label: "Members",
+              data: members,
+              backgroundColor: ["#4dc9f6", "#f67019", "#f53794", "#537bc4", "#acc236", "#166a8f"]
+            }]
+          }
+        });
+      });
+    }
+
+    function exportChartToPDF(chartId) {
+      const canvas = document.getElementById(chartId);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jspdf.jsPDF();
+      pdf.addImage(imgData, 'PNG', 10, 10, 190, 100);
+      pdf.save(chartId + ".pdf");
+    }
+
+    function exportChartToExcel(chartId) {
+      const chart = Chart.getChart(chartId);
+      if (!chart) return;
+      const ws_data = [["Label", "Value"]];
+      chart.data.labels.forEach((label, index) => {
+        ws_data.push([label, chart.data.datasets[0].data[index]]);
+      });
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      XLSX.utils.book_append_sheet(wb, ws, "Data");
+      XLSX.writeFile(wb, chartId + ".xlsx");
+    }
+
+    function toggleChart(id) {
+      const el = document.getElementById(id);
+      el.style.display = el.style.display === "none" ? "block" : "none";
+    }
+
+    document.getElementById("attendanceMonthFilter").addEventListener("change", (e) => {
+      renderAttendanceChart(e.target.value);
     });
 
-    // Engagement Chart
-    db.collection("engagement").get().then(snapshot => {
-      const ministries = [];
-      const members = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        ministries.push(data.ministry);
-        members.push(data.members);
-      });
-      new Chart(document.getElementById("engagementChart"), {
-        type: 'doughnut',
-        data: {
-          labels: ministries,
-          datasets: [{
-            label: "Members",
-            data: members,
-            backgroundColor: [
-              "#4dc9f6", "#f67019", "#f53794",
-              "#537bc4", "#acc236", "#166a8f"
-            ]
-          }]
-        }
-      });
+    document.getElementById("givingMonthFilter").addEventListener("change", (e) => {
+      renderGivingChart(e.target.value);
     });
+
+    document.getElementById("ministryFilter").addEventListener("change", (e) => {
+      renderEngagementChart(e.target.value);
+    });
+
+    renderAttendanceChart();
+    renderGivingChart();
+    renderEngagementChart();
   </script>
 </body>
 </html>
