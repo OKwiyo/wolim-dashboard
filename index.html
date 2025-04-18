@@ -4,293 +4,201 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WOLIM STATISTICS Report</title>
-  <!-- Chart.js and Firebase libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f4f8;
-      padding: 10px;
+      font-family: "Poppins", sans-serif;
       margin: 0;
+      padding: 0;
+      background: #e1e5e1;
+      color: #333;
     }
     header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    header h1 {
-      margin: 5px;
-    }
-    .nav-buttons {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .nav-buttons button {
-      margin: 0 5px;
-      padding: 10px 15px;
-      font-size: 1em;
-      border: none;
-      background-color: #007bff;
+      background: #001c00; /* Refined dark green */
       color: white;
-      cursor: pointer;
-      border-radius: 5px;
+      padding: 1.5rem;
+      text-align: center;
+      font-size: 1.2rem;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     }
-    .nav-buttons button:hover {
-      background-color: #0056b3;
-    }
-    /* Container styles for sections */
     .container {
-      max-width: 800px;
-      margin: 0 auto;
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 1.5rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    input, select, button {
+      display: block;
+      width: 100%;
+      padding: 0.6rem;
+      margin-bottom: 1rem;
+      border: 1px solid #005000; /* Refined border */
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: 0.3s;
+    }
+    input:focus, select:focus {
+      border-color: #007000;
+      outline: none;
+    }
+    button {
+      background-color: #006100; /* Refined button color */
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      padding: 0.75rem;
+      transition: 0.3s ease;
+    }
+    button:hover {
+      background-color: #004900;
+      transform: scale(1.03);
+    }
+    .success {
+      color: green;
+      margin-bottom: 1rem;
+      font-weight: bold;
+    }
+    #statistics-section {
       display: none;
     }
-    .visible {
-      display: block;
-    }
-    /* Input form styling */
-    .form-section {
-      background: #fff;
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    .form-section label {
-      font-weight: bold;
-      display: block;
-      margin-top: 10px;
-    }
-    .form-section input {
+    table {
       width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      font-size: 1em;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+      border-collapse: collapse;
     }
-    .form-section button {
-      width: 100%;
-      margin-top: 15px;
+    th, td {
       padding: 10px;
-      font-size: 1em;
-      border-radius: 5px;
-      border: none;
-      background-color: #007bff;
+      border-bottom: 1px solid #ddd;
+      text-align: center;
+    }
+    th {
+      background: #004000;
       color: white;
-      cursor: pointer;
     }
-    .form-section button:hover {
-      background-color: #0056b3;
-    }
-    #confirmation {
-      text-align: center;
-      margin-top: 15px;
-      font-weight: bold;
-      color: green;
-    }
-    /* Charts styling */
-    .chart-section {
-      margin-bottom: 30px;
-    }
-    .chart-section h2 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
-    canvas {
-      background: white;
-      border-radius: 10px;
-      padding: 10px;
-      margin: 0 auto 20px auto;
-      display: block;
-      max-width: 100%;
-      height: 300px;
+    @media (max-width: 600px) {
+      input, select, button {
+        font-size: 1rem;
+      }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>WOLIM STATISTICS Report</h1>
+    <h1>WOLIM STATISTICS Dashboard</h1>
   </header>
-  
-  <!-- Navigation Buttons to Toggle Sections -->
-  <div class="nav-buttons">
-    <button onclick="showSection('formSection')"><i class="fas fa-edit"></i> Input Form</button>
-    <button onclick="showSection('chartsSection')"><i class="fas fa-chart-bar"></i> View Charts</button>
-  </div>
-  
-  <!-- Input Form Section -->
-  <div id="formSection" class="container">
-    <div class="form-section">
-      <h2>Enter Meeting Data</h2>
-      <form id="meetingForm">
-        <label for="meetingDate">Date</label>
-        <input type="date" id="meetingDate" required />
-
-        <label for="adults">Adults Attendance</label>
-        <input type="number" id="adults" placeholder="Enter number of adults" required />
-
-        <label for="amountGiven">Amount Given</label>
-        <input type="number" step="0.01" id="amountGiven" placeholder="Enter total amount given" required />
-
-        <label for="newConverts">New Converts</label>
-        <input type="number" id="newConverts" placeholder="Enter number of new converts" required />
-
-        <label for="visitors">Visitors</label>
-        <input type="number" id="visitors" placeholder="Enter number of visitors" required />
-
-        <label for="ccm">CCM</label>
-        <input type="number" id="ccm" placeholder="Enter CCM value" required />
-
-        <button type="submit">Submit Meeting Data</button>
+  <div class="container">
+    <div id="success-message" class="success"></div>
+    <div id="input-section">
+      <h2>Submit Weekly Statistics</h2>
+      <form id="stats-form">
+        <input type="date" id="date" required />
+        <select id="branch" required>
+          <option value="">Select Branch</option>
+          <option value="Kwekwe City Center">Kwekwe City Center</option>
+          <option value="Kadoma">Kadoma</option>
+          <option value="Gokwe">Gokwe</option>
+        </select>
+        <input type="number" id="adults" placeholder="Adults Attendance" required />
+        <input type="number" id="children_ccm" placeholder="Children Attendance & CCM" required />
+        <input type="number" id="visitors" placeholder="Visitors" required />
+        <input type="number" id="newConverts" placeholder="New Converts" required />
+        <input type="number" id="amountGiven" placeholder="Amount Given" required />
+        <button type="submit">Submit</button>
       </form>
-      <p id="confirmation"></p>
+      <button onclick="fetchStatistics()">View Statistics</button>
+    </div>
+
+    <div id="statistics-section">
+      <h2>Statistics Report</h2>
+      <table id="stats-table">
+        <tr>
+          <th>Date</th>
+          <th>Branch</th>
+          <th>Adults</th>
+          <th>Children & CCM</th>
+          <th>Visitors</th>
+          <th>New Converts</th>
+          <th>Amount Given</th>
+        </tr>
+      </table>
+      <button onclick="returnToInput()">Return to Input Screen</button>
     </div>
   </div>
-  
-  <!-- Charts Section -->
-  <div id="chartsSection" class="container visible">
-    <div class="chart-section">
-      <h2>Adults Attendance</h2>
-      <canvas id="attendanceChart"></canvas>
-    </div>
-    <div class="chart-section">
-      <h2>Amount Given</h2>
-      <canvas id="givingChart"></canvas>
-    </div>
-    <div class="chart-section">
-      <h2>Engagement Metrics</h2>
-      <canvas id="engagementChart"></canvas>
-    </div>
-    <div style="text-align:center; margin-bottom:20px;">
-      <button onclick="loadMeetingData()">Refresh Charts</button>
-    </div>
-  </div>
-  
+
   <script>
-    // ----- Firebase Configuration (Project Settings) -----
     const firebaseConfig = {
-      apiKey: "AIzaSyCPpOvn7JGbt2eoUpmE48cHxZGfVobp6RI",
-      authDomain: "wolimdashboard.firebaseapp.com",
-      projectId: "wolimdashboard",
-      storageBucket: "wolimdashboard.appspot.com",
-      messagingSenderId: "66238315254",
-      appId: "1:66238315254:web:5488e20bf8f768f942cad7"
+      apiKey: "AIzaSyD3m3dGhqUOkwGZGKjL8FzmuWiQiGdI-Y4",
+      authDomain: "wolim-7dc2c.firebaseapp.com",
+      projectId: "wolim-7dc2c",
+      storageBucket: "wolim-7dc2c.appspot.com",
+      messagingSenderId: "442714873941",
+      appId: "1:442714873941:web:aa9a13f6df496c7b9a7ad5"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-  
-    // ----- Section Toggling -----
-    function showSection(sectionId) {
-      document.querySelectorAll('.container').forEach(sec => sec.classList.remove('visible'));
-      document.getElementById(sectionId).classList.add('visible');
-      if(sectionId === 'chartsSection') {
-        loadMeetingData();
-      }
-    }
-  
-    // ----- Input Form Submission -----
-    document.getElementById('meetingForm').addEventListener('submit', async (e) => {
+
+    const form = document.getElementById('stats-form');
+    const successMessage = document.getElementById('success-message');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const meetingDate = document.getElementById('meetingDate').value;
-      const adults = parseInt(document.getElementById('adults').value, 10);
-      const amountGiven = parseFloat(document.getElementById('amountGiven').value);
-      const newConverts = parseInt(document.getElementById('newConverts').value, 10);
-      const visitors = parseInt(document.getElementById('visitors').value, 10);
-      const ccm = parseInt(document.getElementById('ccm').value, 10);
-  
+      const doc = {
+        date: document.getElementById('date').value,
+        branch: document.getElementById('branch').value,
+        adults: +document.getElementById('adults').value,
+        children_ccm: +document.getElementById('children_ccm').value,
+        visitors: +document.getElementById('visitors').value,
+        newConverts: +document.getElementById('newConverts').value,
+        amountGiven: +document.getElementById('amountGiven').value
+      };
+
       try {
-        await db.collection("meetings").add({
-          meetingDate,
-          adults,
-          amountGiven,
-          newConverts,
-          visitors,
-          ccm,
-          submittedAt: new Date()
-        });
-        document.getElementById('confirmation').textContent = "Meeting data submitted successfully!";
-        document.getElementById('meetingForm').reset();
-      } catch (err) {
-        document.getElementById('confirmation').textContent = "Error: " + err.message;
+        await db.collection('branchStatistics').add(doc);
+        successMessage.textContent = 'Submission successful!';
+        
+        form.reset();
+        setTimeout(() => { successMessage.textContent = ''; }, 3000);
+      } catch (error) {
+        successMessage.textContent = 'Error: ' + error.message;
       }
     });
-  
-    // ----- Load Data and Create Charts from "meetings" Collection -----
-    async function loadMeetingData() {
-      const snapshot = await db.collection("meetings").orderBy("meetingDate").get();
-      let attendanceLabels = [];
-      let attendanceData = [];
-      let givingLabels = [];
-      let givingData = [];
-      // Aggregated engagement metrics
-      let totalNewConverts = 0;
-      let totalVisitors = 0;
-      let totalCCM = 0;
-  
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        attendanceLabels.push(data.meetingDate);
-        givingLabels.push(data.meetingDate);
-        attendanceData.push(data.adults);
-        givingData.push(data.amountGiven);
-        totalNewConverts += data.newConverts;
-        totalVisitors += data.visitors;
-        totalCCM += data.ccm;
-      });
-  
-      // Create / Update the Attendance Bar Chart
-      const ctx1 = document.getElementById("attendanceChart").getContext("2d");
-      if(window.attendanceChartInstance) window.attendanceChartInstance.destroy();
-      window.attendanceChartInstance = new Chart(ctx1, {
-        type: "bar",
-        data: {
-          labels: attendanceLabels,
-          datasets: [{
-            label: "Adults Attendance",
-            data: attendanceData,
-            backgroundColor: "rgba(54, 162, 235, 0.6)"
-          }]
-        }
-      });
-  
-      // Create / Update the Giving Line Chart
-      const ctx2 = document.getElementById("givingChart").getContext("2d");
-      if(window.givingChartInstance) window.givingChartInstance.destroy();
-      window.givingChartInstance = new Chart(ctx2, {
-        type: "line",
-        data: {
-          labels: givingLabels,
-          datasets: [{
-            label: "Amount Given",
-            data: givingData,
-            borderColor: "rgba(255, 99, 132, 1)",
-            backgroundColor: "rgba(255, 99, 132, 0.2)",
-            tension: 0.3,
-            fill: true
-          }]
-        }
-      });
-  
-      // Create / Update the Engagement Doughnut Chart
-      const ctx3 = document.getElementById("engagementChart").getContext("2d");
-      if(window.engagementChartInstance) window.engagementChartInstance.destroy();
-      window.engagementChartInstance = new Chart(ctx3, {
-        type: "doughnut",
-        data: {
-          labels: ["New Converts", "Visitors", "CCM"],
-          datasets: [{
-            label: "Engagement Metrics",
-            data: [totalNewConverts, totalVisitors, totalCCM],
-            backgroundColor: ["#4dc9f6", "#f67019", "#f53794"]
-          }]
-        }
-      });
+
+    async function fetchStatistics() {
+      const table = document.getElementById("stats-table");
+
+      while (table.rows.length > 1) {
+        table.deleteRow(1);
+      }
+
+      try {
+        const snapshot = await db.collection("branchStatistics").get();
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const row = table.insertRow();
+          row.insertCell(0).textContent = data.date;
+          row.insertCell(1).textContent = data.branch;
+          row.insertCell(2).textContent = data.adults;
+          row.insertCell(3).textContent = data.children_ccm;
+          row.insertCell(4).textContent = data.visitors;
+          row.insertCell(5).textContent = data.newConverts;
+          row.insertCell(6).textContent = data.amountGiven;
+        });
+
+        document.getElementById('statistics-section').style.display = 'block';
+        document.getElementById('input-section').style.display = 'none';
+      } catch (error) {
+        console.error("Error fetching statistics:", error);
+      }
     }
-  
-    // Initially load charts (default landing page is chartsSection)
-    loadMeetingData();
+
+    function returnToInput() {
+      document.getElementById('statistics-section').style.display = 'none';
+      document.getElementById('input-section').style.display = 'block';
+    }
   </script>
 </body>
 </html>
